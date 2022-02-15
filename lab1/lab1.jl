@@ -24,6 +24,8 @@ begin
 	using CairoMakie: Point, streamplot, (..)
 	using SymPy: @syms, Differential, dsolve, diff
 
+	import Base: show
+
 	using PlutoUI
 	TableOfContents()
 end
@@ -256,7 +258,7 @@ eq₃cauchy(N₀ = 10, t₀=1)
 
 # ╔═╡ d2851b4c-36e7-4331-aad7-1237abe3ce45
 md"""
-## Задание 3.2 (график аналитического решения)
+### Задание 3.2 (график аналитического решения)
 """
 
 # ╔═╡ 0c62ffde-5772-4ada-8e6b-9f4af75b1255
@@ -288,14 +290,14 @@ plot(
 
 # ╔═╡ 69647171-e695-4a71-8990-0eab57fc436a
 md"""
-## Задание 3.3 (качественный анализ модели по решению)
+### Задание 3.3 (качественный анализ модели по решению)
 
 При N₀ < Nₖₚ наблюдается экспоненциальное убывание, а при N₀ > Nₖₚ -- экспоненциальный рост. При N₀ ⩵ Nₖₚ численность населения не изменяется.
 """
 
 # ╔═╡ 60195422-7e30-4133-99e0-f9bba7f1b203
 md"""
-## Задание 3.4 (качественный анализ модели по фазовому портрету)
+### Задание 3.4 (качественный анализ модели по фазовому портрету)
 """
 
 # ╔═╡ 325cc855-878e-4375-ae94-71c368771a41
@@ -305,6 +307,63 @@ streamplot(
 		# (1 * x - 2) * x,
 		0
 	), 0..10, -0.1..0.1
+)
+
+# ╔═╡ 44950393-ac60-479a-b589-f98bb0bb8cb7
+md"""
+## Задание 4. Предсказание численности населения по заданным параметрам модели
+"""
+
+# ╔═╡ 929d3561-f660-4f70-9ab9-a55dc1ecfcf2
+begin
+	struct Country
+		name::String
+		year::Int
+		year_end::Int
+	
+		α₀
+		β₀
+		N₀
+
+		solution
+	
+		Country(α₀, β₀, N₀; name::String, year::Int=2022, year_end::Int=2122) = new(
+			name, year, year_end, α₀, β₀, N₀,
+			solve(
+				ODEProblem(
+					(N, p, t) -> ((α₀/N₀) * N - β₀) * N,
+					N₀,
+					(year, year_end)
+				)
+			)
+		)
+	end
+	
+	#Base.show(io::IO, c::Country) = print(name, 
+	#	eq₃cauchy(α₀=(t)->c.α₀/c.N₀, β₀=(t)->c.β₀, N₀=c.N₀, t₀=c.year)
+	#)
+
+	(c::Country)(year::Int) = c.solution(year) |> round |> Int;
+end
+
+# ╔═╡ 0499e28c-cf62-46be-a7ca-5b1d386f0564
+Belarus = Country(0.011874, 0.013346, 9450233, name="Belarus", year=2017);
+
+# ╔═╡ 4dcf2096-7657-4ce9-af1b-94cc8fa23659
+md"""
+$(@bind year_Belarus Slider(Belarus.year:Belarus.year_end, show_value=true))
+"""
+
+# ╔═╡ 31ab9e1d-2c11-4f61-81c2-444ef82d48a9
+md"""
+Belarus population in $(year_Belarus): $(Belarus(year_Belarus))
+"""
+
+# ╔═╡ 586e57ce-af4b-4629-9221-c8745e2d720e
+plot(
+	Belarus.solution,
+	label="Population",
+	title=Belarus.name
 )
 
 # ╔═╡ Cell order:
@@ -354,3 +413,9 @@ streamplot(
 # ╟─69647171-e695-4a71-8990-0eab57fc436a
 # ╟─60195422-7e30-4133-99e0-f9bba7f1b203
 # ╠═325cc855-878e-4375-ae94-71c368771a41
+# ╟─44950393-ac60-479a-b589-f98bb0bb8cb7
+# ╠═929d3561-f660-4f70-9ab9-a55dc1ecfcf2
+# ╠═0499e28c-cf62-46be-a7ca-5b1d386f0564
+# ╟─4dcf2096-7657-4ce9-af1b-94cc8fa23659
+# ╟─31ab9e1d-2c11-4f61-81c2-444ef82d48a9
+# ╟─586e57ce-af4b-4629-9221-c8745e2d720e
