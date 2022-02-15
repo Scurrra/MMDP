@@ -19,34 +19,21 @@ begin
 	import Pkg
 	Pkg.activate()
 
-	using DifferentialEquations: ODEProblem, solve
-	using Plots: plot
+	using RecipesBase
+	using Plots: plot, @recipe
 	using CairoMakie: Point, streamplot, (..)
+	
+	using DifferentialEquations: ODEProblem, solve
 	using SymPy: @syms, Differential, dsolve, diff
-
-	import Base: show
+	using LsqFit
+	
+	using CSV, DataFrames, OffsetArrays
+	
+	import Base: show, getindex
 
 	using PlutoUI
 	TableOfContents()
 end
-
-# ╔═╡ 4e7d36f9-dd1e-4ab6-8055-f9b124e54e68
-md"""
-# Лабораторная работа №1
-# Математические модели динамики численности популяции одного вида
-Подготовил: Боровский Илья
-"""
-
-# ╔═╡ 14a0f2c9-7a3b-4806-b988-f5ac7b5e5eeb
-md"""
-## Задание 1. Модель Мальтуса
-### Задание 1.1 (аналитическое решение)
-
-$\frac{∂ N(t)}{∂ t} = (α(t) + β(t))N(t)$
-$\frac{d N(t)}{N} = (α(t) + β(t)) d t$
-$ln(N(t)) = \int (α(t) + β(t)) d t + C₁$
-$N(t) = C₁ e^{\int (α(t) + β(t)) d t}$
-"""
 
 # ╔═╡ a27fb1c6-9a0e-47e7-a264-09a820aa9598
 @syms t, α(), β(), N(), t₀, N₀
@@ -79,47 +66,8 @@ end
 # ╔═╡ 69495793-fbbd-4abb-820d-b0d94025138d
 eq₁cauchy(N₀ = 10, t₀=1)
 
-# ╔═╡ 94873f6e-e5a9-4e42-b693-30bef5901c75
-md"""
-### Задание 1.2 (график аналитического решения)
-"""
-
-# ╔═╡ acc363ae-780d-417f-adab-c1bac579038a
-md"""
-α₀ = $(@bind α₀ Slider(-5:0.1:5, default=1, show_value=true))
-β₀ = $(@bind β₀ Slider(-5:0.1:5, default=2, show_value=true))
-"""
-
 # ╔═╡ b9bc3371-1fdd-456f-839c-0a4d490f7d4f
 t0, N0 = 1, 10
-
-# ╔═╡ 8a1ff32e-954e-4e61-9482-1ca7952044d9
-sol₁ = solve(
-	ODEProblem(
-		(N, p, t) -> (α₀ - β₀) * N,
-		N0,
-		(t0, 1000)
-	)
-);
-
-# ╔═╡ 863770d3-357d-489c-9833-8b14a4813e6a
-plot(
-	sol₁,
-	title="Maltus Linear Equation",
-	label="Solution"
-)
-
-# ╔═╡ 5a6195f9-d27a-4d3d-9df5-f832b9321874
-md"""
-### Задание 1.3 (качественный анализ модели по решению)
-
-При α₀ < β₀ наблюдается экспоненциальное убывание, а при α₀ > β₀ -- экспоненциальное возрастание. При α₀ ⩵ β₀ N(t₀) ≡ N₀ является положением равновесия.
-"""
-
-# ╔═╡ ac096f46-799d-4f1a-88cc-793f076bc425
-md"""
-### Задание 1.4 (качественный анализ модели по фазовому портрету)
-"""
 
 # ╔═╡ f98a4b52-bb8c-4a9b-9081-1924882013d4
 streamplot(
@@ -129,14 +77,6 @@ streamplot(
 		0
 	), 0..10, -0.1..0.1
 )
-
-# ╔═╡ 61b9e905-da33-4802-a223-3e8aa42d5165
-md"""
-## Задание 2. Логистическая модель или модель Ферхюльста
-### Задание 2.1 (аналитическое решение)
-
-$\frac{∂ N(t)}{∂ t} = N(t) k \left( 1 - \frac{N(t)}{Nₚ} \right)$
-"""
 
 # ╔═╡ 4ee66613-3f1e-4d97-a793-b4c98678ce06
 @syms Nₚ, k
@@ -171,6 +111,235 @@ end
 
 # ╔═╡ 56c29f63-0b6e-4f0f-80c2-239d22756068
 eq₂cauchy(t₀=1, N₀=10^9)
+
+# ╔═╡ ece00c65-098b-4862-a55e-fb5ed1301466
+streamplot(
+	(x, y) -> Point(
+		#x * kₚ * (1 - x / Np),
+		x * 0.1 * (1 - x / 12*10^9),
+		0
+	), 0..10, -0.1..0.1
+)
+
+# ╔═╡ a4c52dc1-51fe-420c-94d0-979c19c507df
+eq₃ = ∂ₜ(N) ~ (α(t) * N(t) - β(t)) * N(t)
+
+# ╔═╡ b885f5ec-06e8-4278-a115-c80fc50942d5
+dsolve(eq₃)
+
+# ╔═╡ 436712ac-e656-47f7-b486-ae3d6789b2d6
+dsolve(eq₃, ics=Dict(N(t₀) => N₀))
+
+# ╔═╡ 061cfd80-4783-4399-8814-ec9dc3b00ae7
+"""
+	eq₃cauchy(; α₀=α, β₀=β, N₀=N₀, t₀=t₀)
+
+Non-Linear Maltus equation Cauchy problem solution
+"""
+function eq₃cauchy(; α₀=α, β₀=β, N₀=N₀, t₀=t₀)
+	dsolve(
+		∂ₜ(N) ~ (α₀(t) * N(t) - β₀(t)) * N(t), 
+		ics=Dict(N(t₀) => N₀)
+	)
+end
+
+# ╔═╡ 5a39345e-b1dc-4cf5-89e3-0d408eb6e87c
+eq₃cauchy(N₀ = 10, t₀=1)
+
+# ╔═╡ 929d3561-f660-4f70-9ab9-a55dc1ecfcf2
+begin
+	struct CountryKnown
+		name::String
+		year::Int
+		year_end::Int
+	
+		α₀
+		β₀
+		N₀
+
+		solution
+	
+		CountryKnown(α₀, β₀, N₀; name::String, year::Int=2022, year_end::Int=2122) = new(
+			name, year, year_end, α₀, β₀, N₀,
+			solve(
+				ODEProblem(
+					(N, p, t) -> ((α₀/N₀) * N - β₀) * N,
+					N₀,
+					(year, year_end)
+				)
+			)
+		)
+	end
+	
+	#Base.show(io::IO, c::Country) = print(name, 
+	#	eq₃cauchy(α₀=(t)->c.α₀/c.N₀, β₀=(t)->c.β₀, N₀=c.N₀, t₀=c.year)
+	#)
+
+	(c::CountryKnown)(year::Int) = c.solution(year) |> round |> Int;
+end
+
+# ╔═╡ 0499e28c-cf62-46be-a7ca-5b1d386f0564
+Belarus = CountryKnown(0.011874, 0.013346, 9450233, name="Belarus", year=2017);
+
+# ╔═╡ 586e57ce-af4b-4629-9221-c8745e2d720e
+plot(
+	Belarus.solution,
+	label="Population",
+	title=Belarus.name
+)
+
+# ╔═╡ c15f1c0f-e4cc-4d71-af6f-ca0b64353895
+population = CSV.read("population.csv", DataFrame);
+
+# ╔═╡ 3abda224-3fbd-420c-9fa7-eeffd33c7637
+@bind country Select(names(population), default="Belarus")
+
+# ╔═╡ a10590bb-1d7c-4488-82bf-6e2c2f74da7b
+begin
+	mutable struct CountryPopulation
+		name::String
+		year_start::Int
+		year_end::Int
+		data::OffsetArray
+
+		LM
+		V
+		NM
+		
+		CountryPopulation(name, data; year_start::Int=1960, year_end::Int=2020) = new(
+			name,
+			year_start,
+			year_end,
+			OffsetArray(data, year_start:year_end),
+			@NamedTuple{αβ₀::Float64}(curve_fit(
+				(t, p) -> data[1] * exp.(p[1] * (t .- year_start)), 
+				year_start:year_end |> collect, 
+				data |> collect, 
+				[.0]
+			).param |> Tuple),
+			@NamedTuple{k::Float64, Nₚ::Int}(curve_fit((t, p) -> data[1] * p[2] * exp.(p[1] * (t .- year_start)) ./ (data[1] - p[2]) ./ (data[1] * exp.(p[1] * (t .- year_start)) / (data[1] - p[2]) .- 1), 
+				year_start:year_end |> collect, 
+				data |> collect, 
+				[1., data[1]]
+			).param |> Tuple),
+			@NamedTuple{α₀::Float64, β₀::Float64}(curve_fit(
+			(t, p) -> p[2] ./ p[1] ./ (1 .- exp.( p[2] * (t .- data[1] .+ log( Complex(1 - p[2]/p[1]/data[1]) ) / p[2]) )), 
+				year_start:year_end |> collect, 
+				data |> collect, 
+				[1., 1.]
+			).param |> Tuple)
+		)
+	end
+
+	@inline Base.getindex(p::CountryPopulation, i::Integer) = p.data[i]
+
+	@recipe function f(c::CountryPopulation)
+		title := c.name
+		label := "Real Population"
+		y := c.data
+	end
+end
+
+# ╔═╡ 4e7d36f9-dd1e-4ab6-8055-f9b124e54e68
+md"""
+# Лабораторная работа №1
+# Математические модели динамики численности популяции одного вида
+Подготовил: Боровский Илья
+"""
+
+# ╔═╡ 14a0f2c9-7a3b-4806-b988-f5ac7b5e5eeb
+md"""
+## Задание 1. Модель Мальтуса
+### Задание 1.1 (аналитическое решение)
+
+$\frac{∂ N(t)}{∂ t} = (α(t) + β(t))N(t)$
+$\frac{d N(t)}{N} = (α(t) + β(t)) d t$
+$ln(N(t)) = \int (α(t) + β(t)) d t + C₁$
+$N(t) = C₁ e^{\int (α(t) + β(t)) d t}$
+"""
+
+# ╔═╡ 94873f6e-e5a9-4e42-b693-30bef5901c75
+md"""
+### Задание 1.2 (график аналитического решения)
+"""
+
+# ╔═╡ acc363ae-780d-417f-adab-c1bac579038a
+md"""
+α₀ = $(@bind α₀ Slider(-5:0.1:5, default=1, show_value=true))
+β₀ = $(@bind β₀ Slider(-5:0.1:5, default=2, show_value=true))
+"""
+
+# ╔═╡ 8a1ff32e-954e-4e61-9482-1ca7952044d9
+sol₁ = solve(
+	ODEProblem(
+		(N, p, t) -> (α₀ - β₀) * N,
+		N0,
+		(t0, 1000)
+	)
+);
+
+# ╔═╡ 863770d3-357d-489c-9833-8b14a4813e6a
+plot(
+	sol₁,
+	title="Maltus Linear Equation",
+	label="Solution"
+)
+
+# ╔═╡ 0c62ffde-5772-4ada-8e6b-9f4af75b1255
+begin 
+	N0₃ = Dict(
+		"N₀" => N0,
+		"N₀ < Nₖₚ" => β₀/α₀-0.0001,
+		"N₀ ⩵ Nₖₚ" => β₀/α₀,
+		"N₀ > Nₖₚ" => β₀/α₀+0.0001,
+	)
+	@bind key₃ Radio(["N₀", "N₀ < Nₖₚ", "N₀ ⩵ Nₖₚ", "N₀ > Nₖₚ"], default="N₀")
+end
+
+# ╔═╡ 2a353848-15e8-4bb6-8944-66aeacd059d3
+sol₃ = solve(
+	ODEProblem(
+		(N, p, t) -> (α₀ * N - β₀) * N,
+		N0₃[key₃],
+		(t0, 1000)
+	)
+);
+
+# ╔═╡ 3af61166-36c6-47bf-9c7f-e3a0a84195a9
+plot(
+	sol₃,
+	title="Maltus Non-Linear Equation",
+	label="Solution"
+)
+
+# ╔═╡ 325cc855-878e-4375-ae94-71c368771a41
+streamplot(
+	(x, y) -> Point(
+		(α₀ * x - β₀) * x,
+		# (1 * x - 2) * x,
+		0
+	), 0..10, -0.1..0.1
+)
+
+# ╔═╡ 5a6195f9-d27a-4d3d-9df5-f832b9321874
+md"""
+### Задание 1.3 (качественный анализ модели по решению)
+
+При α₀ < β₀ наблюдается экспоненциальное убывание, а при α₀ > β₀ -- экспоненциальное возрастание. При α₀ ⩵ β₀ N(t₀) ≡ N₀ является положением равновесия.
+"""
+
+# ╔═╡ ac096f46-799d-4f1a-88cc-793f076bc425
+md"""
+### Задание 1.4 (качественный анализ модели по фазовому портрету)
+"""
+
+# ╔═╡ 61b9e905-da33-4802-a223-3e8aa42d5165
+md"""
+## Задание 2. Логистическая модель или модель Ферхюльста
+### Задание 2.1 (аналитическое решение)
+
+$\frac{∂ N(t)}{∂ t} = N(t) k \left( 1 - \frac{N(t)}{Nₚ} \right)$
+"""
 
 # ╔═╡ 48be88ff-282a-4ada-9f07-9e6a37588127
 md"""
@@ -214,15 +383,6 @@ md"""
 ### Задание 2.4 (качественный анализ модели по фазовому портрету)
 """
 
-# ╔═╡ ece00c65-098b-4862-a55e-fb5ed1301466
-streamplot(
-	(x, y) -> Point(
-		#x * kₚ * (1 - x / Np),
-		x * 0.1 * (1 - x / 12*10^9),
-		0
-	), 0..10, -0.1..0.1
-)
-
 # ╔═╡ ad440370-79d3-4510-8630-5c4d77e0615f
 md"""
 ## Задание 3. Нелинейный аналог модели Мальтуса
@@ -231,62 +391,10 @@ md"""
 $\frac{∂ N(t)}{∂ t} = (α(t)*N(t) + β(t))N(t)$
 """
 
-# ╔═╡ a4c52dc1-51fe-420c-94d0-979c19c507df
-eq₃ = ∂ₜ(N) ~ (α(t) * N(t) - β(t)) * N(t)
-
-# ╔═╡ b885f5ec-06e8-4278-a115-c80fc50942d5
-dsolve(eq₃)
-
-# ╔═╡ 436712ac-e656-47f7-b486-ae3d6789b2d6
-dsolve(eq₃, ics=Dict(N(t₀) => N₀))
-
-# ╔═╡ 061cfd80-4783-4399-8814-ec9dc3b00ae7
-"""
-	eq₃cauchy(; α₀=α, β₀=β, N₀=N₀, t₀=t₀)
-
-Non-Linear Maltus equation Cauchy problem solution
-"""
-function eq₃cauchy(; α₀=α, β₀=β, N₀=N₀, t₀=t₀)
-	dsolve(
-		∂ₜ(N) ~ (α₀(t) * N(t) - β₀(t)) * N(t), 
-		ics=Dict(N(t₀) => N₀)
-	)
-end
-
-# ╔═╡ 5a39345e-b1dc-4cf5-89e3-0d408eb6e87c
-eq₃cauchy(N₀ = 10, t₀=1)
-
 # ╔═╡ d2851b4c-36e7-4331-aad7-1237abe3ce45
 md"""
 ### Задание 3.2 (график аналитического решения)
 """
-
-# ╔═╡ 0c62ffde-5772-4ada-8e6b-9f4af75b1255
-begin 
-	N0₃ = Dict(
-		"N₀" => N0,
-		"N₀ < Nₖₚ" => β₀/α₀-0.0001,
-		"N₀ ⩵ Nₖₚ" => β₀/α₀,
-		"N₀ > Nₖₚ" => β₀/α₀+0.0001,
-	)
-	@bind key₃ Radio(["N₀", "N₀ < Nₖₚ", "N₀ ⩵ Nₖₚ", "N₀ > Nₖₚ"], default="N₀")
-end
-
-# ╔═╡ 2a353848-15e8-4bb6-8944-66aeacd059d3
-sol₃ = solve(
-	ODEProblem(
-		(N, p, t) -> (α₀ * N - β₀) * N,
-		N0₃[key₃],
-		(t0, 1000)
-	)
-);
-
-# ╔═╡ 3af61166-36c6-47bf-9c7f-e3a0a84195a9
-plot(
-	sol₃,
-	title="Maltus Non-Linear Equation",
-	label="Solution"
-)
 
 # ╔═╡ 69647171-e695-4a71-8990-0eab57fc436a
 md"""
@@ -300,54 +408,10 @@ md"""
 ### Задание 3.4 (качественный анализ модели по фазовому портрету)
 """
 
-# ╔═╡ 325cc855-878e-4375-ae94-71c368771a41
-streamplot(
-	(x, y) -> Point(
-		(α₀ * x - β₀) * x,
-		# (1 * x - 2) * x,
-		0
-	), 0..10, -0.1..0.1
-)
-
 # ╔═╡ 44950393-ac60-479a-b589-f98bb0bb8cb7
 md"""
 ## Задание 4. Предсказание численности населения по заданным параметрам модели
 """
-
-# ╔═╡ 929d3561-f660-4f70-9ab9-a55dc1ecfcf2
-begin
-	struct Country
-		name::String
-		year::Int
-		year_end::Int
-	
-		α₀
-		β₀
-		N₀
-
-		solution
-	
-		Country(α₀, β₀, N₀; name::String, year::Int=2022, year_end::Int=2122) = new(
-			name, year, year_end, α₀, β₀, N₀,
-			solve(
-				ODEProblem(
-					(N, p, t) -> ((α₀/N₀) * N - β₀) * N,
-					N₀,
-					(year, year_end)
-				)
-			)
-		)
-	end
-	
-	#Base.show(io::IO, c::Country) = print(name, 
-	#	eq₃cauchy(α₀=(t)->c.α₀/c.N₀, β₀=(t)->c.β₀, N₀=c.N₀, t₀=c.year)
-	#)
-
-	(c::Country)(year::Int) = c.solution(year) |> round |> Int;
-end
-
-# ╔═╡ 0499e28c-cf62-46be-a7ca-5b1d386f0564
-Belarus = Country(0.011874, 0.013346, 9450233, name="Belarus", year=2017);
 
 # ╔═╡ 4dcf2096-7657-4ce9-af1b-94cc8fa23659
 md"""
@@ -359,12 +423,48 @@ md"""
 Belarus population in $(year_Belarus): $(Belarus(year_Belarus))
 """
 
-# ╔═╡ 586e57ce-af4b-4629-9221-c8745e2d720e
+# ╔═╡ 8af93dde-6486-4639-8cc9-862f05876bd1
+md"""
+## Задание 5. Изменение численности населения страны. Определение параметров модели по реальным данным
+"""
+
+# ╔═╡ 760fba49-e682-4fbf-8e04-54d92d1546aa
+begin
+	@syms α₀₀, β₀₀
+	dsolve(
+		∂ₜ(N) ~ (α₀₀ * N(t) - β₀₀) * N(t), 
+		ics=Dict(N(t₀) => N₀)
+	)
+end;
+
+# ╔═╡ 3e71a374-9df6-4db1-877e-baf371cc4fa9
+country_population = CountryPopulation(country, population[!, country])
+
+# ╔═╡ c2a61651-9101-4d62-9282-e472c7f1bdb9
 plot(
-	Belarus.solution,
-	label="Population",
-	title=Belarus.name
+	country_population
 )
+
+# ╔═╡ c70eded1-b9e5-44c9-8713-2b46ba080e82
+
+
+# ╔═╡ 5191361b-2ae1-4c31-ba2d-58b66ecbcd6a
+
+
+# ╔═╡ 74f4ee96-af57-482d-ad4a-01481bcc3c79
+
+
+# ╔═╡ 5089b0ee-fcc0-4217-96b3-f93f0e7eb6dc
+
+
+# ╔═╡ 5b8bf47f-4a0e-4582-a34c-e2e4dc008146
+
+
+# ╔═╡ 030429f7-2371-43c9-bee1-ab5e727bbce3
+
+
+# ╔═╡ 62c9d9f8-eca9-47f2-bf5b-777289ce0320
+
 
 # ╔═╡ Cell order:
 # ╠═c5717b80-88bf-11ec-18bd-258b0006abe5
@@ -419,3 +519,17 @@ plot(
 # ╟─4dcf2096-7657-4ce9-af1b-94cc8fa23659
 # ╟─31ab9e1d-2c11-4f61-81c2-444ef82d48a9
 # ╟─586e57ce-af4b-4629-9221-c8745e2d720e
+# ╟─8af93dde-6486-4639-8cc9-862f05876bd1
+# ╠═c15f1c0f-e4cc-4d71-af6f-ca0b64353895
+# ╟─3abda224-3fbd-420c-9fa7-eeffd33c7637
+# ╠═a10590bb-1d7c-4488-82bf-6e2c2f74da7b
+# ╟─760fba49-e682-4fbf-8e04-54d92d1546aa
+# ╠═3e71a374-9df6-4db1-877e-baf371cc4fa9
+# ╠═c2a61651-9101-4d62-9282-e472c7f1bdb9
+# ╠═c70eded1-b9e5-44c9-8713-2b46ba080e82
+# ╠═5191361b-2ae1-4c31-ba2d-58b66ecbcd6a
+# ╠═74f4ee96-af57-482d-ad4a-01481bcc3c79
+# ╠═5089b0ee-fcc0-4217-96b3-f93f0e7eb6dc
+# ╠═5b8bf47f-4a0e-4582-a34c-e2e4dc008146
+# ╠═030429f7-2371-43c9-bee1-ab5e727bbce3
+# ╠═62c9d9f8-eca9-47f2-bf5b-777289ce0320
