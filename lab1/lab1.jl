@@ -121,8 +121,11 @@ streamplot(
 	), 0..10, -0.1..0.1
 )
 
+# ╔═╡ 899a2de6-a92e-403e-85c9-e98dca4688d1
+@syms α₀₀, β₀₀
+
 # ╔═╡ a4c52dc1-51fe-420c-94d0-979c19c507df
-eq₃ = ∂ₜ(N) ~ (α(t) * N(t) - β(t)) * N(t)
+eq₃ = ∂ₜ(N) ~ (α₀₀ * N(t) - β₀₀) * N(t)
 
 # ╔═╡ b885f5ec-06e8-4278-a115-c80fc50942d5
 dsolve(eq₃)
@@ -217,13 +220,15 @@ begin
 				data |> collect, 
 				[.0]
 			).param |> Tuple),
+			# doesn`t fit
 			@NamedTuple{k::Float64, Nₚ::Int}(curve_fit((t, p) -> data[1] * p[2] * exp.(p[1] * (t .- year_start)) ./ (data[1] - p[2]) ./ (data[1] * exp.(p[1] * (t .- year_start)) / (data[1] - p[2]) .- 1), 
 				year_start:year_end |> collect, 
 				data |> collect, 
 				[1., data[1]]
 			).param |> Tuple),
+			# fit`s into a straight horisontal line
 			@NamedTuple{α₀::Float64, β₀::Float64}(curve_fit(
-			(t, p) -> p[2] ./ p[1] ./ (1 .- exp.( p[2] * (t .- data[1] .+ log( Complex(1 - p[2]/p[1]/data[1]) ) / p[2]) )), 
+			(t, p) -> p[2] ./ (p[1] .- exp.( p[2] * (t .- year_start .+ log( Complex(p[1] - p[2]/data[1]) ) / p[2]) )), 
 				year_start:year_end |> collect, 
 				data |> collect, 
 				[1., 1.]
@@ -234,9 +239,21 @@ begin
 	@inline Base.getindex(p::CountryPopulation, i::Integer) = p.data[i]
 
 	@recipe function f(c::CountryPopulation)
+		
+		lm = OffsetArray(
+			c.data[c.year_start] * exp.(c.LM.αβ₀ * (0:(c.year_end - c.year_start))),
+			c.year_start:c.year_end
+		)
+		
+		nm = OffsetArray(
+			c.NM.β₀ ./ (c.NM.α₀ .- exp.( c.NM.β₀ * ((0:(c.year_end - c.year_start)) .+ log( Complex(c.NM.α₀ - c.NM.β₀/c.data[c.year_start]) ) / c.NM.β₀) )) .|> Float64,
+			c.year_start:c.year_end
+		)
+		
 		title := c.name
-		label := "Real Population"
-		y := c.data
+		label := ["Real Population" "Linear Maltus Model" "Nonlinear Maltus Model"]
+		y := [c.data, lm, nm]
+		
 	end
 end
 
@@ -425,17 +442,15 @@ Belarus population in $(year_Belarus): $(Belarus(year_Belarus))
 
 # ╔═╡ 8af93dde-6486-4639-8cc9-862f05876bd1
 md"""
-## Задание 5. Изменение численности населения страны. Определение параметров модели по реальным данным
+## Задание 5-6. Изменение численности населения страны и мира. Определение параметров модели по реальным данным
 """
 
 # ╔═╡ 760fba49-e682-4fbf-8e04-54d92d1546aa
 begin
-	@syms α₀₀, β₀₀
-	dsolve(
-		∂ₜ(N) ~ (α₀₀ * N(t) - β₀₀) * N(t), 
-		ics=Dict(N(t₀) => N₀)
+	dsolve(		∂ₜ(N) ~ (α₀₀ * N(t) - β₀₀) * N(t)
+		, ics=Dict(N(t₀) => N₀)
 	)
-end;
+end
 
 # ╔═╡ 3e71a374-9df6-4db1-877e-baf371cc4fa9
 country_population = CountryPopulation(country, population[!, country])
@@ -444,27 +459,6 @@ country_population = CountryPopulation(country, population[!, country])
 plot(
 	country_population
 )
-
-# ╔═╡ c70eded1-b9e5-44c9-8713-2b46ba080e82
-
-
-# ╔═╡ 5191361b-2ae1-4c31-ba2d-58b66ecbcd6a
-
-
-# ╔═╡ 74f4ee96-af57-482d-ad4a-01481bcc3c79
-
-
-# ╔═╡ 5089b0ee-fcc0-4217-96b3-f93f0e7eb6dc
-
-
-# ╔═╡ 5b8bf47f-4a0e-4582-a34c-e2e4dc008146
-
-
-# ╔═╡ 030429f7-2371-43c9-bee1-ab5e727bbce3
-
-
-# ╔═╡ 62c9d9f8-eca9-47f2-bf5b-777289ce0320
-
 
 # ╔═╡ Cell order:
 # ╠═c5717b80-88bf-11ec-18bd-258b0006abe5
@@ -501,6 +495,7 @@ plot(
 # ╟─3f1005b7-2204-4f3e-97a9-cf81a6c881b3
 # ╠═ece00c65-098b-4862-a55e-fb5ed1301466
 # ╟─ad440370-79d3-4510-8630-5c4d77e0615f
+# ╠═899a2de6-a92e-403e-85c9-e98dca4688d1
 # ╠═a4c52dc1-51fe-420c-94d0-979c19c507df
 # ╠═b885f5ec-06e8-4278-a115-c80fc50942d5
 # ╠═436712ac-e656-47f7-b486-ae3d6789b2d6
@@ -523,13 +518,6 @@ plot(
 # ╠═c15f1c0f-e4cc-4d71-af6f-ca0b64353895
 # ╟─3abda224-3fbd-420c-9fa7-eeffd33c7637
 # ╠═a10590bb-1d7c-4488-82bf-6e2c2f74da7b
-# ╟─760fba49-e682-4fbf-8e04-54d92d1546aa
+# ╠═760fba49-e682-4fbf-8e04-54d92d1546aa
 # ╠═3e71a374-9df6-4db1-877e-baf371cc4fa9
 # ╠═c2a61651-9101-4d62-9282-e472c7f1bdb9
-# ╠═c70eded1-b9e5-44c9-8713-2b46ba080e82
-# ╠═5191361b-2ae1-4c31-ba2d-58b66ecbcd6a
-# ╠═74f4ee96-af57-482d-ad4a-01481bcc3c79
-# ╠═5089b0ee-fcc0-4217-96b3-f93f0e7eb6dc
-# ╠═5b8bf47f-4a0e-4582-a34c-e2e4dc008146
-# ╠═030429f7-2371-43c9-bee1-ab5e727bbce3
-# ╠═62c9d9f8-eca9-47f2-bf5b-777289ce0320
