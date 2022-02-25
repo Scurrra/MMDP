@@ -20,7 +20,7 @@ begin
 	Pkg.activate()
 
 	using RecipesBase
-	using Plots: plot, @recipe
+	using Plots: plot, plot!, @recipe
 	using CairoMakie: Point, streamplot, (..)
 	
 	using DifferentialEquations: ODEProblem, solve
@@ -69,13 +69,50 @@ eq₁cauchy(N₀ = 10, t₀=1)
 # ╔═╡ b9bc3371-1fdd-456f-839c-0a4d490f7d4f
 t0, N0 = 1, 10
 
+# ╔═╡ 0dfcfa9f-f9f2-489c-b38b-4cc858f488e1
+begin
+	plot(title="Linear Maltus with different parameters α₀ and β₀")
+	plot!(
+		solve(
+			ODEProblem(
+				(N, p, t) -> (1 - 2) * N,
+				N0,
+				(t0, 30)
+			)
+		),
+		label = "α₀ < β₀"
+	)
+	
+	plot!(
+		solve(
+			ODEProblem(
+				(N, p, t) -> (1 - 1) * N,
+				N0,
+				(t0, 3)
+			)
+		),
+		label = "α₀ = β₀"
+	)
+
+	plot!(
+		solve(
+			ODEProblem(
+				(N, p, t) -> (2 - 1) * N,
+				N0,
+				(t0, 3)
+			)
+		),
+		label = "α₀ > β₀"
+	)
+end
+
 # ╔═╡ f98a4b52-bb8c-4a9b-9081-1924882013d4
 streamplot(
 	(x, y) -> Point(
 		# (α₀ - β₀) * x,
 		(1 - 2) * x,
 		0
-	), 0..10, -0.1..0.1
+	), -1..10, -0.1..0.1
 )
 
 # ╔═╡ 4ee66613-3f1e-4d97-a793-b4c98678ce06
@@ -151,7 +188,7 @@ eq₃cauchy(N₀ = 10, t₀=1)
 
 # ╔═╡ 929d3561-f660-4f70-9ab9-a55dc1ecfcf2
 begin
-	struct CountryKnown
+	struct Country
 		name::String
 		year::Int
 		year_end::Int
@@ -162,7 +199,7 @@ begin
 
 		solution
 	
-		CountryKnown(α₀, β₀, N₀; name::String, year::Int=2022, year_end::Int=2122) = new(
+		Country(α₀, β₀, N₀; name::String, year::Int=2022, year_end::Int=2122) = new(
 			name, year, year_end, α₀, β₀, N₀,
 			solve(
 				ODEProblem(
@@ -178,11 +215,11 @@ begin
 	#	eq₃cauchy(α₀=(t)->c.α₀/c.N₀, β₀=(t)->c.β₀, N₀=c.N₀, t₀=c.year)
 	#)
 
-	(c::CountryKnown)(year::Int) = c.solution(year) |> round |> Int;
+	(c::Country)(year::Int) = c.solution(year) |> round |> Int;
 end
 
 # ╔═╡ 0499e28c-cf62-46be-a7ca-5b1d386f0564
-Belarus = CountryKnown(0.011874, 0.013346, 9450233, name="Belarus", year=2017);
+Belarus = Country(0.011874, 0.013346, 9450233, name="Belarus", year=2017);
 
 # ╔═╡ 586e57ce-af4b-4629-9221-c8745e2d720e
 plot(
@@ -199,7 +236,7 @@ population = CSV.read("population.csv", DataFrame);
 
 # ╔═╡ a10590bb-1d7c-4488-82bf-6e2c2f74da7b
 begin
-	mutable struct CountryPopulation
+	struct Population
 		name::String
 		year_start::Int
 		year_end::Int
@@ -209,7 +246,7 @@ begin
 		V
 		NM
 		
-		CountryPopulation(name, data; year_start::Int=1960, year_end::Int=2020) = new(
+		Population(name, data; year_start::Int=1960, year_end::Int=2020) = new(
 			name,
 			year_start,
 			year_end,
@@ -227,6 +264,14 @@ begin
 				[1., data[1]]
 			).param |> Tuple),
 			# fit`s into a straight horisontal line
+			#=
+			@NamedTuple{α₀::Float64, β₀::Float64}(curve_fit(
+			(t, p) -> (p[2]*data[1]*exp(p[2]*year_start)) ./ (p[1]*data[1]*exp(p[2]*year_start) .+ exp.(p[2].*t).*(p[2] - p[1]*data[1])), 
+				year_start:year_end |> collect, 
+				data |> collect, 
+				[1., 1.]
+			).param |> Tuple)
+			=#
 			@NamedTuple{α₀::Float64, β₀::Float64}(curve_fit(
 			(t, p) -> p[2] ./ (p[1] .- exp.( p[2] * (t .- year_start .+ log( Complex(p[1] - p[2]/data[1]) ) / p[2]) )), 
 				year_start:year_end |> collect, 
@@ -236,23 +281,31 @@ begin
 		)
 	end
 
-	@inline Base.getindex(p::CountryPopulation, i::Integer) = p.data[i]
+	@inline Base.getindex(p::Population, i::Integer) = p.data[i]
 
-	@recipe function f(c::CountryPopulation)
+	@recipe function f(c::Population)
 		
 		lm = OffsetArray(
 			c.data[c.year_start] * exp.(c.LM.αβ₀ * (0:(c.year_end - c.year_start))),
 			c.year_start:c.year_end
 		)
-		
+
+		#=
+		nm = OffsetArray(
+			(c.NM.β₀*c.data[c.year_start]*exp(c.NM.β₀*c.year_start)) ./ (c.NM.α₀*c.data[c.year_start]*exp(c.NM.β₀*c.year_start) .+ exp.(c.NM.β₀.* (c.year_start:c.year_end) ).*(c.NM.β₀ - c.NM.α₀*c.data[c.year_start])),
+			c.year_start:c.year_end
+		)
+
 		nm = OffsetArray(
 			c.NM.β₀ ./ (c.NM.α₀ .- exp.( c.NM.β₀ * ((0:(c.year_end - c.year_start)) .+ log( Complex(c.NM.α₀ - c.NM.β₀/c.data[c.year_start]) ) / c.NM.β₀) )) .|> Float64,
 			c.year_start:c.year_end
 		)
+		=#
 		
 		title := c.name
-		label := ["Real Population" "Linear Maltus Model" "Nonlinear Maltus Model"]
-		y := [c.data, lm, nm]
+		label := ["Real Population" "Linear Maltus Model"] #"Nonlinear Maltus Model"]
+		#label := :none
+		y := [c.data, lm] #, nm]
 		
 	end
 end
@@ -269,10 +322,15 @@ md"""
 ## Задание 1. Модель Мальтуса
 ### Задание 1.1 (аналитическое решение)
 
-$\frac{∂ N(t)}{∂ t} = (α(t) + β(t))N(t)$
-$\frac{d N(t)}{N} = (α(t) + β(t)) d t$
-$ln(N(t)) = \int (α(t) + β(t)) d t + C₁$
-$N(t) = C₁ e^{\int (α(t) + β(t)) d t}$
+$\frac{∂ N(t)}{∂ t} = (α(t) - β(t))N(t), N(t₀) = N₀$
+$\frac{d N(t)}{N} = (α(t) - β(t)) d t$
+$ln(N(t)) = \int (α(t) - β(t)) d t + C$
+$N(t) = C e^{\int (α(t) - β(t)) d t}$
+
+Решим задачу Коши:
+
+$N₀  = C e^{\int (α(t₀) - β(t₀)) d t₀}$
+$N(t) = N₀ e^{\int (α(t) - β(t)) d t} e^{\int (β(t₀) - α(t₀)) d t₀}$
 """
 
 # ╔═╡ 94873f6e-e5a9-4e42-b693-30bef5901c75
@@ -348,6 +406,8 @@ md"""
 # ╔═╡ ac096f46-799d-4f1a-88cc-793f076bc425
 md"""
 ### Задание 1.4 (качественный анализ модели по фазовому портрету)
+
+0 -- точка равновесия.
 """
 
 # ╔═╡ 61b9e905-da33-4802-a223-3e8aa42d5165
@@ -355,7 +415,38 @@ md"""
 ## Задание 2. Логистическая модель или модель Ферхюльста
 ### Задание 2.1 (аналитическое решение)
 
-$\frac{∂ N(t)}{∂ t} = N(t) k \left( 1 - \frac{N(t)}{Nₚ} \right)$
+$\frac{∂ N(t)}{∂ t} = N(t) k \left( 1 - \frac{N(t)}{Nₚ} \right), N(t₀) = N₀$
+$N' = k N - \frac{k N^2}{Nₚ}$
+$N' - k N + \frac{k N^2}{Nₚ} = 0$
+$\frac{N'}{N^2} - \frac{k}{N} + \frac{k}{Nₚ} = 0$
+
+Сделаем замену: 
+
+$z = \frac{1}{N} \Rightarrow z'=-\frac{N'}{N^2}$
+
+Тогда уравнение перепишется в виде:
+
+$-z' - k z + \frac{k}{Nₚ} = 0$
+$z' + k z - \frac{k}{Nₚ} = 0$
+
+Будем искать решение в виде: $z(t) = u(t) v(t)$
+
+$u' v + v' u + k u v - \frac{k}{Nₚ} = 0$
+$v' u + v (u' + k u) - \frac{k}{Nₚ} = 0$
+$u' + k u = 0 \Rightarrow u = e^{-k t}$
+$v' e^{-k t} = \frac{k}{Nₚ}$
+$d v = \frac{k}{Nₚ} e^{k t} d t$
+$v = \frac{e^{k t}}{Nₚ} + C$
+
+Отсюда имеем:
+
+$z = u v = e^{-k t} * \left( \frac{e^{k t}}{Nₚ} + C \right) = \frac{1}{Nₚ} + C e^{-k t} = \frac{1}{N}$
+$N = \frac{1}{\frac{1}{Nₚ} + \frac{C}{e^{k t}}} = \frac{Nₚ e^{k t}}{e^{k t} + C Nₚ}, C = \left( \frac{1}{N} - \frac{1}{Nₚ} \right) e^{k t}$
+
+Решим задачу Коши:
+
+$C = \left( \frac{1}{N₀} - \frac{1}{Nₚ} \right) e^{k t₀} = \frac{Nₚ - N₀}{N₀ Nₚ} e^{k t₀} \Rightarrow$
+$N = \frac{Nₚ e^{k t}}{e^{k t} + \frac{Nₚ - N₀}{N₀} e^{k t₀}} = \frac{N₀ Nₚ e^{k t}}{N₀ e^{k t} + (Nₚ - N₀) e^{k t₀}} = \frac{N₀ Nₚ e^{k (t - t₀)}}{N₀ \left( e^{k (t - t₀)} - 1 \right) + Nₚ}$
 """
 
 # ╔═╡ 48be88ff-282a-4ada-9f07-9e6a37588127
@@ -405,7 +496,31 @@ md"""
 ## Задание 3. Нелинейный аналог модели Мальтуса
 ### Задание 3.1 (аналитическое решение)
 
-$\frac{∂ N(t)}{∂ t} = (α(t)*N(t) + β(t))N(t)$
+$\frac{∂ N(t)}{∂ t} = (α₀ N(t) - β₀)N(t), N(t₀) = N₀$
+$\frac{d N}{(α₀ N - β₀)N} = d t$
+
+Разложим $\frac{1}{(α₀ N - β₀)N}$ на две дроби:
+
+$\frac{1}{(α₀ N - β₀)N} = \frac{A}{α₀ N - β₀} + \frac{B}{N} = \frac{A N + B α₀ N - B β₀}{(α₀ N - β₀)N} \Rightarrow$
+$A N + B α₀ N - B β₀ = 1 \Rightarrow \begin{cases}
+	A + B α₀ = 0 \\
+ 	B β₀ = -1
+\end{cases} \Rightarrow \begin{cases}
+	B = \frac{-1}{β₀} \\
+ 	A = - B α₀ = \frac{α₀}{β₀}
+\end{cases}$
+
+Получим следующее:
+
+$\left( \frac{α₀}{α₀ N - β₀} - \frac{1}{N} \right) d N = β₀ d t$
+$ln|α₀ N - β₀| - ln N = β₀ t + C$
+$ln \left( \frac{|α₀ N - β₀|}{N} \right) = β₀ t + C$
+$α₀ - \frac{β₀}{N} = C e^{β₀ t} \Rightarrow$
+$N = \frac{β₀}{α₀ - C e^{β₀ t}}, C = \frac{N α₀ - β₀}{N e^{β₀ t}}$
+
+Решим задачу Коши:
+
+$C = \frac{N₀ α₀ - β₀}{N₀ e^{β₀ t₀}} \Rightarrow N = \frac{β₀}{α₀ - \frac{N₀ α₀ - β₀}{N₀} e^{β₀ (t - t₀)}} = \frac{N₀ β₀}{N₀ α₀ - (N₀ α₀ - β₀) e^{β₀ (t - t₀)}}$
 """
 
 # ╔═╡ d2851b4c-36e7-4331-aad7-1237abe3ce45
@@ -423,6 +538,8 @@ md"""
 # ╔═╡ 60195422-7e30-4133-99e0-f9bba7f1b203
 md"""
 ### Задание 3.4 (качественный анализ модели по фазовому портрету)
+
+$\frac{β₀}{α₀}$ -- неустойчивое положение равновесия.
 """
 
 # ╔═╡ 44950393-ac60-479a-b589-f98bb0bb8cb7
@@ -445,15 +562,8 @@ md"""
 ## Задание 5-6. Изменение численности населения страны и мира. Определение параметров модели по реальным данным
 """
 
-# ╔═╡ 760fba49-e682-4fbf-8e04-54d92d1546aa
-begin
-	dsolve(		∂ₜ(N) ~ (α₀₀ * N(t) - β₀₀) * N(t)
-		, ics=Dict(N(t₀) => N₀)
-	)
-end
-
 # ╔═╡ 3e71a374-9df6-4db1-877e-baf371cc4fa9
-country_population = CountryPopulation(country, population[!, country])
+country_population = Population(country, population[!, country])
 
 # ╔═╡ c2a61651-9101-4d62-9282-e472c7f1bdb9
 plot(
@@ -476,6 +586,7 @@ plot(
 # ╠═b9bc3371-1fdd-456f-839c-0a4d490f7d4f
 # ╠═8a1ff32e-954e-4e61-9482-1ca7952044d9
 # ╟─863770d3-357d-489c-9833-8b14a4813e6a
+# ╟─0dfcfa9f-f9f2-489c-b38b-4cc858f488e1
 # ╟─5a6195f9-d27a-4d3d-9df5-f832b9321874
 # ╟─ac096f46-799d-4f1a-88cc-793f076bc425
 # ╠═f98a4b52-bb8c-4a9b-9081-1924882013d4
@@ -518,6 +629,5 @@ plot(
 # ╠═c15f1c0f-e4cc-4d71-af6f-ca0b64353895
 # ╟─3abda224-3fbd-420c-9fa7-eeffd33c7637
 # ╠═a10590bb-1d7c-4488-82bf-6e2c2f74da7b
-# ╠═760fba49-e682-4fbf-8e04-54d92d1546aa
 # ╠═3e71a374-9df6-4db1-877e-baf371cc4fa9
 # ╠═c2a61651-9101-4d62-9282-e472c7f1bdb9
