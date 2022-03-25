@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.18.2
+# v0.18.4
 
 using Markdown
 using InteractiveUtils
@@ -22,7 +22,8 @@ begin
 	using DataFrames;
 
 	using RecipesBase;
-	using Plots: plot, plot!, @recipe;
+	using Plots
+	#using Plots: plot, plot!, @recipe, @animate, @gif, scatter;
 	using CairoMakie: Point, Figure, Axis, scatter!, streamplot, streamplot!, (..);
 	#using ImplicitEquations
 
@@ -186,7 +187,41 @@ md"""
 """
 
 # ╔═╡ e88eee60-2477-4c99-9038-e0dbfe4ced2e
+md"""
+l = $(@bind L_vis Slider(.1:.1:20, show_value=true, default=9.8))
 
+ω₀ = $(@bind ω₀ Slider(-π:.1π:π, show_value=true, default=0))
+
+α₀ = $(@bind α₀ Slider(-π:.1π:π, show_value=true, default=0))
+"""
+
+# ╔═╡ 52cb2d17-a5be-46af-bb05-cd918df184c0
+begin
+	sol_vis = SecondOrderODEProblem(
+		(dα, α, p, t) -> - G/L_vis*sin(α),
+		ω₀,
+		α₀,
+		(0, 1000)
+	) |> solve;
+	
+	@gif for i=1:length(sol_vis.t)
+		plot(
+			xlims=(-1.3L, 1.3L), 
+			ylims=(-1.3L, 1.3L),
+			title="Math Pendulum"
+		)
+		Plots.scatter!(
+			[L_vis*sin(sol_vis[i][2])], 
+			[-L_vis*cos(sol_vis[i][2])],
+			label=:none
+		)
+		plot!(
+			[0, L_vis*sin(sol_vis[i][2])], 
+			[0, -L_vis*cos(sol_vis[i][2])],
+			label=:none
+		)
+	end
+end
 
 # ╔═╡ f5786b75-496c-4821-be80-1e724d65dc9d
 md"""
@@ -355,12 +390,6 @@ begin
 	fig
 end
 
-# ╔═╡ 186d8a0b-353e-484f-bddd-5b90c964f9ac
-√\left( \frac{l}{2 g} \right) \frac{ⅆ α}{√( cos(α) - cos(α₀) )}
-
-# ╔═╡ 7e62adc6-2df3-43ce-92b2-ab165a64eee6
-√\left( \frac{l}{2 g} \right) \frac{ⅆ α}{√( cos(α) - cos(α₀) )}
-
 # ╔═╡ Cell order:
 # ╟─d4131f40-a5f0-11ec-3145-277b974115e6
 # ╟─6ad86a53-633c-4226-aab9-62ac0455faee
@@ -370,18 +399,17 @@ end
 # ╟─707e80ba-6c79-4d52-ade5-7b23b5c9d342
 # ╟─ceafbdd3-ea9e-48c9-b80e-3cb7e29c4536
 # ╟─a7b8d2b0-fcfe-4715-99b6-4b8bbd03e9bc
-# ╠═e88eee60-2477-4c99-9038-e0dbfe4ced2e
+# ╟─e88eee60-2477-4c99-9038-e0dbfe4ced2e
+# ╟─52cb2d17-a5be-46af-bb05-cd918df184c0
 # ╟─f5786b75-496c-4821-be80-1e724d65dc9d
 # ╠═32e566b2-9951-48d3-a9a0-fac330ea46ce
 # ╠═a9a8daab-341c-416b-a898-9abf66c32d3a
 # ╟─260045bb-5f5f-4049-911c-0561d31699a9
 # ╟─3be58d11-b11c-4e1d-9516-78066f63451b
 # ╟─fe09e8dc-e05f-426b-a0bb-e9de46a69965
-# ╠═bc1633bc-7806-4933-ba78-1307b91a715d
-# ╠═4bff40df-cac3-48ac-84bd-84460b59575d
+# ╟─bc1633bc-7806-4933-ba78-1307b91a715d
+# ╟─4bff40df-cac3-48ac-84bd-84460b59575d
 # ╠═811ce2fc-4a5f-4b9f-92bf-1b728d0f6e63
-# ╠═85a92feb-fc0c-4357-94b6-19fe9f99a0e1
+# ╟─85a92feb-fc0c-4357-94b6-19fe9f99a0e1
 # ╟─96412f1d-3768-45c5-a071-11f8372b7a26
 # ╟─2c56071e-aea8-473c-a1de-fb6a91fe1358
-# ╠═186d8a0b-353e-484f-bddd-5b90c964f9ac
-# ╠═7e62adc6-2df3-43ce-92b2-ab165a64eee6
