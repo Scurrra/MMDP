@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.18.2
+# v0.19.0
 
 using Markdown
 using InteractiveUtils
@@ -23,9 +23,9 @@ begin
 
 	using RecipesBase;
 	using Plots: plot, plot!, @recipe;
-	using CairoMakie: Point, streamplot, (..);
-
-	using DifferentialEquations: SecondOrderODEProblem, solve;
+	using CairoMakie: Point, Figure, Axis, streamplot, streamplot!, (..)
+	
+	using DifferentialEquations: SecondOrderODEProblem, ODEProblem, solve;
 	using SymPy: @syms, Differential, solve, diff, dsolve
 
 	using LinearAlgebra
@@ -432,6 +432,84 @@ streamplot(
 	), -3..3, -3..3
 )
 
+# ╔═╡ 292baf02-5fcf-4978-a5ef-2973f1520998
+md"""
+## Задание 5* (необязательное). Математическая модель любовных отношений
+
+$\begin{cases}
+	\frac{𝕕 R}{𝕕 t} = a \; R + b \; J \\
+	\frac{𝕕 J}{𝕕 t} = c \; R + d \; J
+\end{cases}$
+
+где $R(t)$ -- состояние влюбленности мужчины (Romeo), $J(t)$ -- состояние влюбленности женщины (Juliet).
+
+
+a = $(@bind a Slider(-1:.1:1; default=0, show_value=true))
+
+b = $(@bind b Slider(-1:.1:1; default=0, show_value=true))
+
+c = $(@bind c Slider(-1:.1:1; default=0, show_value=true))
+
+d = $(@bind d Slider(-1:.1:1; default=0, show_value=true))
+"""
+
+# ╔═╡ 87c0c957-0e5e-4d7f-95dd-f1ea3322565f
+begin
+	function rj!(du, u, p, t)
+		du[1] = p[1]*u[1] + p[2]*u[2]
+		du[2] = p[3]*u[1] + p[4]*u[2]
+	end
+
+	struct Love
+		a::Float64
+		b::Float64
+		c::Float64
+		d::Float64
+
+		solution
+
+		Love(; a::Float64=0, b::Float64=0, c::Float64=0, d::Float64=0, tmax=1000) = 
+			new(
+				a, b, c, d,
+				ODEProblem(
+					rj!,
+					[1, 1],
+					(0, tmax),
+					(a, b, c, d)
+				) |> solve
+			)
+	end
+
+	@recipe function f(rj::Love)
+		title := "Romeo & Juliet"
+		label := :none
+		ratio := :equal
+		vars := (1, 2)
+		rj.solution
+	end
+
+	function stream(rj::Love)
+		fig = Figure()
+		ax = Axis(fig[1, 1])
+		streamplot!(
+			(R, J) -> Point(
+				rj.a * R + rj.b * J,
+				rj.c * R + rj.d * J
+			), -10..10, -10..10
+		)
+		fig
+	end
+end;
+
+# ╔═╡ 7f0f4826-0518-4ab5-82fe-764f4724cc17
+rj = Love(a=a, b=b, c=c, d=d);
+
+# ╔═╡ 43c4accb-ff54-4065-bbec-9e2cdfec607e
+rj |> plot
+
+# ╔═╡ 6587f853-c836-43ab-8f97-099a85742b2d
+rj |> stream
+
 # ╔═╡ Cell order:
 # ╟─24859bea-a037-11ec-1529-ede51f9bb656
 # ╟─45d13863-edb9-4eb1-879d-8d4221deca50
@@ -467,3 +545,8 @@ streamplot(
 # ╟─b5ac39a0-b3f0-4c94-933c-6f707df8989e
 # ╟─6c18fcfd-9f3e-4ef7-a273-1592a3ca0230
 # ╟─7dcf43d8-f9ae-4db1-bb95-e6e12fe305f6
+# ╟─292baf02-5fcf-4978-a5ef-2973f1520998
+# ╟─87c0c957-0e5e-4d7f-95dd-f1ea3322565f
+# ╠═7f0f4826-0518-4ab5-82fe-764f4724cc17
+# ╠═43c4accb-ff54-4065-bbec-9e2cdfec607e
+# ╠═6587f853-c836-43ab-8f97-099a85742b2d
