@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.18.4
+# v0.19.0
 
 using Markdown
 using InteractiveUtils
@@ -77,14 +77,6 @@ l = $(@bind L Slider(.1:.1:20, show_value=true, default=9.8))
 C = $(@bind C Slider(0:.1:10, show_value=true))
 """
 
-# ╔═╡ 80a8c108-df13-4e26-b46a-266e5bb654e0
-streamplot(
-	(α, ω) -> Point(
-		ω, 
-		- G / L * sin(α)
-	), -2π..2π, -2π..2π
-)
-
 # ╔═╡ 53be9958-f14a-4821-949b-653b09bed530
 begin
 	Α = collect(-2π:(π/180):2π)
@@ -107,6 +99,14 @@ begin
 	)
 end
 
+# ╔═╡ 80a8c108-df13-4e26-b46a-266e5bb654e0
+streamplot(
+	(α, ω) -> Point(
+		ω, 
+		- G / L * sin(α)
+	), -2π..2π, -2π..2π
+)
+
 # ╔═╡ 707e80ba-6c79-4d52-ade5-7b23b5c9d342
 md"""
 $ω = 0, α = πn (n ∈ \mathbb(Z))$ -- особые точки системы. 
@@ -124,8 +124,7 @@ $ω = 0, α = πn (n ∈ \mathbb(Z))$ -- особые точки системы.
 begin
 	plot(
 		xlims=(-2π, 2π),
-		ylims=(-2π, 2π),
-		title="Фазовый портрет"
+		ylims=(-2π, 2π)
 	)
 	
 	plot!(
@@ -391,11 +390,11 @@ begin
 end
 
 # ╔═╡ Cell order:
-# ╟─d4131f40-a5f0-11ec-3145-277b974115e6
+# ╠═d4131f40-a5f0-11ec-3145-277b974115e6
 # ╟─6ad86a53-633c-4226-aab9-62ac0455faee
 # ╟─9b142b22-d7f7-404f-9cda-f85b912df686
-# ╟─80a8c108-df13-4e26-b46a-266e5bb654e0
 # ╟─53be9958-f14a-4821-949b-653b09bed530
+# ╟─80a8c108-df13-4e26-b46a-266e5bb654e0
 # ╟─707e80ba-6c79-4d52-ade5-7b23b5c9d342
 # ╟─ceafbdd3-ea9e-48c9-b80e-3cb7e29c4536
 # ╟─a7b8d2b0-fcfe-4715-99b6-4b8bbd03e9bc
@@ -407,9 +406,9 @@ end
 # ╟─260045bb-5f5f-4049-911c-0561d31699a9
 # ╟─3be58d11-b11c-4e1d-9516-78066f63451b
 # ╟─fe09e8dc-e05f-426b-a0bb-e9de46a69965
-# ╟─bc1633bc-7806-4933-ba78-1307b91a715d
+# ╠═bc1633bc-7806-4933-ba78-1307b91a715d
 # ╟─4bff40df-cac3-48ac-84bd-84460b59575d
 # ╠═811ce2fc-4a5f-4b9f-92bf-1b728d0f6e63
 # ╟─85a92feb-fc0c-4357-94b6-19fe9f99a0e1
 # ╟─96412f1d-3768-45c5-a071-11f8372b7a26
-# ╟─2c56071e-aea8-473c-a1de-fb6a91fe1358
+# ╠═2c56071e-aea8-473c-a1de-fb6a91fe1358
