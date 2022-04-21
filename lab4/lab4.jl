@@ -25,6 +25,7 @@ begin
 	using Plots; gr();
 	#using Plots: plot, plot!, @recipe, @animate, @gif, scatter;
 	using CairoMakie: Point, Figure, Axis, scatter!, streamplot, streamplot!, vlines!, (..);
+	using LinearAlgebra
 		
 	using DifferentialEquations: ODEProblem, solve;
 
@@ -147,7 +148,7 @@ rr = $(@bind rr_sir Slider(0.01:0.01:1; default=0.2, show_value=true))
 """
 
 # ╔═╡ a4bbcf81-460a-45e9-8ecd-a74537ed5e36
-sir = SIR(ir_sir, rr_sir; N=100, I₀ = 10, tmax=10);
+sir = SIR(ir_sir, rr_sir; N=100, I₀ = 10, tmax=15);
 
 # ╔═╡ 7ef9886d-1321-41c7-a89d-bbcfa5ac47ec
 sir |> plot
@@ -470,7 +471,7 @@ md"""
 """
 
 # ╔═╡ Cell order:
-# ╟─51564fca-b572-11ec-1f86-2b443d5a1085
+# ╠═51564fca-b572-11ec-1f86-2b443d5a1085
 # ╟─030aecea-ed3d-403b-97e7-4d7916382556
 # ╟─4b079bbe-51e4-4714-aa48-36a214e0f20c
 # ╟─6e458c4c-bf1a-4b16-9d47-ace152ce2abd
